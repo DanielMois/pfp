@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}PFP - Dashboard{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="text-center mb-4">
+                <i class="bi bi-wallet2 text-primary"></i>
+                Dashboard Financeiro
+            </h1>
+        </div>
+    </div>
+
+    <!-- Cards de Saldo -->
+    <div class="row mb-4" id="saldos-container">
+        <div class="col-12">
+            <h3 class="mb-3">
+                <i class="bi bi-cash-stack"></i> Seus Saldos
+            </h3>
+        </div>
+        
+        <!-- Cards serão carregados dinamicamente -->
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="mb-3">
+                <i class="bi bi-graph-up"></i> Estatísticas
+            </h3>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="icon text-primary">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="title">Parcelas do Mês Atual</div>
+                <div class="value" id="gasto-medio">R$ 0,00</div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="icon text-success">
+                    <i class="bi bi-wallet"></i>
+                </div>
+                <div class="title">Saldo Total</div>
+                <div class="value" id="saldo-total">R$ 0,00</div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="icon text-warning">
+                    <i class="bi bi-credit-card"></i>
+                </div>
+                <div class="title">Compras este Mês</div>
+                <div class="value" id="compras-mes">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Gastos por Categoria -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart"></i> Gastos por Categoria
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoriaChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botões de Ação -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('resumo') }}" class="btn btn-primary btn-lg me-3">
+                <i class="bi bi-graph-up"></i> Ver Resumo Completo
+            </a>
+            <a href="{{ url_for('credito') }}" class="btn btn-success btn-lg me-3">
+                <i class="bi bi-plus-circle"></i> Nova Compra
+            </a>
+
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Adicionar/Editar Saldo -->
+<div class="modal fade" id="saldoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="saldoModalTitle">
+                    <i class="bi bi-plus-circle"></i> Adicionar Saldo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saldoForm">
+                    <div class="mb-3">
+                        <label for="tipoSaldo" class="form-label">Tipo de Saldo</label>
+                        <select class="form-select" id="tipoSaldo" required>
+                            <option value="">Selecione o tipo</option>
+                            <option value="disponivel">Saldo Disponível</option>
+                            <option value="guardado">Saldo Guardado</option>
+                            <option value="investido">Saldo Investido</option>
+                            <option value="dinheiro_fisico">Saldo em Dinheiro Físico</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="valorSaldo" class="form-label">Valor</label>
+                        <input type="number" class="form-control" id="valorSaldo" step="0.01" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="salvarSaldo">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let categoriaChart;
+let saldos = [];
+
+// Carregar dados iniciais
+document.addEventListener('DOMContentLoaded', function() {
+    carregarSaldos();
+    carregarEstatisticas();
+    carregarGraficoCategorias();
+});
+
+// Carregar saldos
+async function carregarSaldos() {
+    try {
+        const response = await apiRequest('/api/saldos');
+        saldos = response;
+        renderizarSaldos();
+    } catch (error) {
+        console.error('Erro ao carregar saldos:', error);
+    }
+}
+
+// Renderizar cards de saldo
+function renderizarSaldos() {
+    const container = document.getElementById('saldos-container');
+    const tiposSaldo = [
+        { tipo: 'disponivel', nome: 'Saldo Disponível', icon: 'bi-wallet', color: 'primary' },
+        { tipo: 'guardado', nome: 'Saldo Guardado', icon: 'bi-piggy-bank', color: 'success' },
+        { tipo: 'investido', nome: 'Saldo Investido', icon: 'bi-graph-up-arrow', color: 'info' },
+        { tipo: 'dinheiro_fisico', nome: 'Saldo em Dinheiro Físico', icon: 'bi-cash', color: 'warning' }
+    ];
+    
+    let html = '';
+    tiposSaldo.forEach(tipo => {
+        const saldo = saldos.find(s => s.tipo === tipo.tipo);
+        const valor = saldo ? saldo.valor : 0;
+        const dataAtualizacao = saldo ? formatDate(saldo.data_atualizacao) : 'N/A';
+        
+        html += `
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="saldo-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h3><i class="bi ${tipo.icon}"></i> ${tipo.nome}</h3>
+                            <div class="valor">${formatCurrency(valor)}</div>
+                            <div class="data">Atualizado: ${dataAtualizacao}</div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="editarSaldo('${tipo.tipo}')">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a></li>
+                                ${saldo ? `<li><a class="dropdown-item text-danger" href="#" onclick="deletarSaldo(${saldo.id})">
+                                    <i class="bi bi-trash"></i> Deletar
+                                </a></li>` : ''}
+                            </ul>
+                        </div>
+                    </div>
+                    ${!saldo ? `
+                        <button class="btn btn-sm btn-outline-light mt-2" onclick="adicionarSaldo('${tipo.tipo}')">
+                            <i class="bi bi-plus-circle"></i> Adicionar
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Carregar estatísticas
+async function carregarEstatisticas() {
+    try {
+        const response = await apiRequest('/api/estatisticas/resumo');
+        
+        document.getElementById('gasto-medio').textContent = formatCurrency(response.gasto_medio_mensal);
+        document.getElementById('saldo-total').textContent = formatCurrency(response.saldo_total);
+        
+        // Contar compras do mês atual
+        const hoje = new Date();
+        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const compras = await apiRequest('/api/compras');
+        const comprasMes = compras.filter(c => new Date(c.data) >= primeiroDiaMes).length;
+        document.getElementById('compras-mes').textContent = comprasMes;
+        
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+    }
+}
+
+// Carregar gráfico de categorias
+async function carregarGraficoCategorias() {
+    try {
+        const response = await apiRequest('/api/estatisticas/resumo');
+        const categorias = response.gastos_por_categoria;
+        
+        if (categoriaChart) {
+            categoriaChart.destroy();
+        }
+        
+        const ctx = document.getElementById('categoriaChart').getContext('2d');
+        const configTema = obterConfiguracaoTema();
+        
+        // Ordenar categorias do maior para o menor valor
+        const categoriasOrdenadas = [...categorias].sort((a, b) => b.total - a.total);
+        
+        categoriaChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: categoriasOrdenadas.map(c => c.categoria),
+                datasets: [{
+                    data: categoriasOrdenadas.map(c => c.total),
+                    backgroundColor: PFP_CONFIG.CORES_GRAFICO,
+                    borderWidth: 1,
+                    borderColor: configTema.borderColor
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: configTema.backgroundColor,
+                        titleColor: configTema.color,
+                        bodyColor: configTema.color,
+                        borderColor: configTema.borderColor,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: configTema.color
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: configTema.color,
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao carregar gráfico:', error);
+    }
+}
+
+// Adicionar saldo
+function adicionarSaldo(tipo) {
+    document.getElementById('saldoModalTitle').innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar Saldo';
+    document.getElementById('tipoSaldo').value = tipo;
+    document.getElementById('valorSaldo').value = '';
+    document.getElementById('saldoForm').dataset.mode = 'create';
+    
+    const modal = new bootstrap.Modal(document.getElementById('saldoModal'));
+    modal.show();
+}
+
+// Editar saldo
+function editarSaldo(tipo) {
+    const saldo = saldos.find(s => s.tipo === tipo);
+    if (!saldo) return;
+    
+    document.getElementById('saldoModalTitle').innerHTML = '<i class="bi bi-pencil"></i> Editar Saldo';
+    document.getElementById('tipoSaldo').value = tipo;
+    document.getElementById('tipoSaldo').disabled = true;
+    document.getElementById('valorSaldo').value = saldo.valor;
+    document.getElementById('saldoForm').dataset.mode = 'edit';
+    document.getElementById('saldoForm').dataset.saldoId = saldo.id;
+    
+    const modal = new bootstrap.Modal(document.getElementById('saldoModal'));
+    modal.show();
+}
+
+// Salvar saldo
+document.getElementById('salvarSaldo').addEventListener('click', async function() {
+    const form = document.getElementById('saldoForm');
+    const tipo = document.getElementById('tipoSaldo').value;
+    const valor = parseFloat(document.getElementById('valorSaldo').value);
+    const mode = form.dataset.mode;
+    
+    if (!tipo || valor === null || valor === undefined || isNaN(valor)) {
+        showNotification('Preencha todos os campos', 'warning');
+        return;
+    }
+    
+    try {
+        if (mode === 'create') {
+            await apiRequest('/api/saldos', {
+                method: 'POST',
+                body: JSON.stringify({ tipo, valor })
+            });
+            showNotification('Saldo adicionado com sucesso!');
+        } else {
+            const saldoId = form.dataset.saldoId;
+            await apiRequest(`/api/saldos/${saldoId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ valor })
+            });
+            showNotification('Saldo atualizado com sucesso!');
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('saldoModal')).hide();
+        carregarSaldos();
+        carregarEstatisticas();
+        
+    } catch (error) {
+        console.error('Erro ao salvar saldo:', error);
+    }
+});
+
+// Deletar saldo
+async function deletarSaldo(saldoId) {
+    if (!confirm('Tem certeza que deseja deletar este saldo?')) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/api/saldos/${saldoId}`, {
+            method: 'DELETE'
+        });
+        showNotification('Saldo deletado com sucesso!');
+        carregarSaldos();
+        carregarEstatisticas();
+    } catch (error) {
+        console.error('Erro ao deletar saldo:', error);
+    }
+}
+
+// Resetar formulário quando modal for fechado
+document.getElementById('saldoModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('saldoForm').reset();
+    document.getElementById('tipoSaldo').disabled = false;
+    delete document.getElementById('saldoForm').dataset.mode;
+    delete document.getElementById('saldoForm').dataset.saldoId;
+});
+
+// Função para atualizar gráficos quando o tema mudar
+function atualizarGraficosTema() {
+    if (categoriaChart) {
+        carregarGraficoCategorias();
+    }
+}
+
+// Adicionar listener para mudança de tema
+document.addEventListener('DOMContentLoaded', function() {
+    // Observar mudanças no atributo data-theme
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                atualizarGraficosTema();
+            }
+        });
+    });
+    
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
+});
+</script>
+{% endblock %} 

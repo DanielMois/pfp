@@ -1,0 +1,129 @@
+# Arquivos de ambiente e credenciais
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.env
+
+# Chaves secretas e configurações
+config.py
+secrets.py
+*.key
+*.pem
+*.p12
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+database.db
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Ambiente virtual
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Arquivos temporários
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Arquivos de backup
+*.bak
+*.backup
+*.old
+
+# Arquivos de sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Arquivos de configuração local
+instance/
+.webassets-cache
+
+# Arquivos de teste
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.mypy_cache/
+
+# Arquivos de deploy
+*.tar.gz
+*.zip
+deploy/
+
+# Arquivos específicos do projeto
+uploads/
+media/
+static/uploads/
+static/media/
+
+# Arquivos de configuração do servidor
+nginx.conf
+apache.conf
+gunicorn.conf.py
+uwsgi.ini
+
+# Arquivos de certificados SSL
+*.crt
+*.csr
+*.pem
+*.key
+ssl/
+
+# Arquivos de backup do banco
+*.sql
+*.dump
+backup/
+
+# Arquivos de monitoramento
+monitoring/
+metrics/ 

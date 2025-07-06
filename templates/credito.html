@@ -1,0 +1,941 @@
+{% extends "base.html" %}
+
+{% block title %}PFP - Crédito{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="text-center mb-4">
+                <i class="bi bi-credit-card text-primary"></i>
+                Controle de Crédito
+            </h1>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel"></i> Filtros
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2 mb-3">
+                            <label for="filtroCategoria" class="form-label">Categoria</label>
+                            <select class="form-select" id="filtroCategoria">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="filtroBanco" class="form-label">Banco</label>
+                            <select class="form-select" id="filtroBanco">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="filtroMes" class="form-label">Mês</label>
+                            <select class="form-select" id="filtroMes">
+                                <option value="">Todos</option>
+                                <option value="1">Janeiro</option>
+                                <option value="2">Fevereiro</option>
+                                <option value="3">Março</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Maio</option>
+                                <option value="6">Junho</option>
+                                <option value="7">Julho</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Setembro</option>
+                                <option value="10">Outubro</option>
+                                <option value="11">Novembro</option>
+                                <option value="12">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="filtroAno" class="form-label">Ano</label>
+                            <select class="form-select" id="filtroAno">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="filtroDataInicio" class="form-label">Data Início</label>
+                            <input type="date" class="form-control" id="filtroDataInicio">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="filtroDataFim" class="form-label">Data Fim</label>
+                            <input type="date" class="form-control" id="filtroDataFim">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary me-2" onclick="aplicarFiltros()">
+                                <i class="bi bi-search"></i> Filtrar
+                            </button>
+                            <button class="btn btn-secondary me-2" onclick="limparFiltros()">
+                                <i class="bi bi-x-circle"></i> Limpar
+                            </button>
+                            <button class="btn btn-success" onclick="abrirModalCompra()">
+                                <i class="bi bi-plus-circle"></i> Nova Compra
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <div class="icon text-primary">
+                    <i class="bi bi-credit-card"></i>
+                </div>
+                <div class="title">Total de Compras</div>
+                <div class="value" id="total-compras">0</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <div class="icon text-warning">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="title">Parcelas do Mês Atual</div>
+                <div class="value" id="valor-total-compras">R$ 0,00</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <div class="icon text-info">
+                    <i class="bi bi-calendar"></i>
+                </div>
+                <div class="title">Compras este Mês</div>
+                <div class="value" id="compras-mes">0</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stats-card">
+                <div class="icon text-success">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <div class="title">Média por Compra</div>
+                <div class="value" id="media-compra">R$ 0,00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico e Tabela -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart"></i> Gastos por Categoria
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoriaChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart"></i> Gastos por Banco
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="bancoChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Tabela de Compras -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table"></i> Compras no Crédito
+                    </h5>
+                    <button class="btn btn-success btn-sm" onclick="exportarCompras()">
+                        <i class="bi bi-download"></i> Exportar
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="comprasTable">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Gasto</th>
+                                    <th>Categoria</th>
+                                    <th>Banco</th>
+                                    <th>Valor</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dados serão carregados dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Adicionar/Editar Compra -->
+<div class="modal fade" id="compraModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="compraModalTitle">
+                    <i class="bi bi-plus-circle"></i> Nova Compra
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="compraForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="dataCompra" class="form-label">Data da Compra</label>
+                            <input type="date" class="form-control" id="dataCompra" required>
+                        </div>
+
+                    </div>
+                    <div class="mb-3">
+                        <label for="gastoCompra" class="form-label">Descrição do Gasto</label>
+                        <input type="text" class="form-control" id="gastoCompra" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="categoriaCompra" class="form-label">Categoria</label>
+                            <select class="form-select" id="categoriaCompra" required>
+                                <option value="">Selecione a categoria</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="bancoCompra" class="form-label">Banco</label>
+                            <select class="form-select" id="bancoCompra" required>
+                                <option value="">Selecione o banco</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="valorCompra" class="form-label">Valor</label>
+                            <input type="number" class="form-control" id="valorCompra" step="0.01" required>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="salvarCompra">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let compras = [];
+let categoriaChart, bancoChart;
+let compraEditando = null;
+
+// Carregar dados iniciais
+document.addEventListener('DOMContentLoaded', function() {
+    preencherSelects();
+    carregarCompras();
+});
+
+// Preencher selects com as opções configuradas
+function preencherSelects() {
+    const categoriaSelect = document.getElementById('categoriaCompra');
+    const bancoSelect = document.getElementById('bancoCompra');
+    
+    if (categoriaSelect) {
+        preencherSelect(categoriaSelect, PFP_CONFIG.CATEGORIAS, 'Selecione a categoria');
+    }
+    
+    if (bancoSelect) {
+        preencherSelect(bancoSelect, PFP_CONFIG.BANCOS, 'Selecione o banco');
+    }
+}
+
+// Carregar compras
+async function carregarCompras() {
+    try {
+        const response = await apiRequest('/api/compras');
+        compras = response;
+        renderizarCompras();
+        atualizarEstatisticas();
+        carregarGraficos();
+        preencherFiltros();
+    } catch (error) {
+        console.error('Erro ao carregar compras:', error);
+    }
+}
+
+// Renderizar tabela de compras
+function renderizarCompras(filtradas = null) {
+    const tbody = document.querySelector('#comprasTable tbody');
+    const comprasParaExibir = filtradas || compras;
+    
+    // Ordenar por data mais recente primeiro
+    const comprasOrdenadas = [...comprasParaExibir].sort((a, b) => {
+        return new Date(b.data) - new Date(a.data);
+    });
+    
+    let html = '';
+    comprasOrdenadas.forEach(compra => {
+        const corCategoria = obterCorCategoria(compra.categoria);
+        const corBanco = obterCorBanco(compra.banco);
+        
+        html += `
+            <tr>
+                <td>${formatDate(compra.data)}</td>
+                <td>${compra.gasto}</td>
+                <td>
+                    <span class="badge" style="background-color: ${corCategoria}; color: white;">${compra.categoria}</span>
+                </td>
+                <td>
+                    <span class="badge" style="background-color: ${corBanco}; color: white;">${compra.banco}</span>
+                </td>
+                <td>${formatCurrency(compra.valor)}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editarCompra(${compra.id})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deletarCompra(${compra.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Atualizar estatísticas
+async function atualizarEstatisticas() {
+    const total = compras.length;
+    const valorTotal = compras.reduce((sum, c) => sum + c.valor, 0);
+    const media = total > 0 ? valorTotal / total : 0;
+    
+    // Compras do mês atual
+    const hoje = new Date();
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const comprasMes = compras.filter(c => new Date(c.data) >= primeiroDiaMes).length;
+    
+    // Calcular fatura do mês atual (apenas parcelas que vencem neste mês)
+    try {
+        const response = await apiRequest('/api/estatisticas/resumo');
+        const faturaMesAtual = response.gasto_medio_mensal;
+        
+        document.getElementById('total-compras').textContent = total;
+        document.getElementById('valor-total-compras').textContent = formatCurrency(faturaMesAtual);
+        document.getElementById('compras-mes').textContent = comprasMes;
+        document.getElementById('media-compra').textContent = formatCurrency(media);
+    } catch (error) {
+        console.error('Erro ao carregar fatura do mês atual:', error);
+        // Fallback para o valor total se houver erro
+        document.getElementById('valor-total-compras').textContent = formatCurrency(valorTotal);
+    }
+}
+
+// Atualizar estatísticas com base nos filtros aplicados
+function atualizarEstatisticasFiltradas(comprasFiltradas) {
+    const total = comprasFiltradas.length;
+    const valorTotal = comprasFiltradas.reduce((sum, c) => sum + c.valor, 0);
+    const media = total > 0 ? valorTotal / total : 0;
+    
+    // Compras do mês atual (baseado nos filtros)
+    const hoje = new Date();
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const comprasMes = comprasFiltradas.filter(c => new Date(c.data) >= primeiroDiaMes).length;
+    
+    document.getElementById('total-compras').textContent = total;
+    document.getElementById('valor-total-compras').textContent = formatCurrency(valorTotal);
+    document.getElementById('compras-mes').textContent = comprasMes;
+    document.getElementById('media-compra').textContent = formatCurrency(media);
+}
+
+// Carregar gráficos
+async function carregarGraficos() {
+    await carregarGraficoCategorias();
+    await carregarGraficoBancos();
+}
+
+// Carregar gráficos com base nos filtros aplicados
+async function carregarGraficosFiltrados(comprasFiltradas) {
+    await carregarGraficoCategoriasFiltrado(comprasFiltradas);
+    await carregarGraficoBancosFiltrado(comprasFiltradas);
+}
+
+// Gráfico de categorias
+async function carregarGraficoCategorias() {
+    const categorias = {};
+    compras.forEach(compra => {
+        if (!categorias[compra.categoria]) {
+            categorias[compra.categoria] = 0;
+        }
+        categorias[compra.categoria] += compra.valor;
+    });
+    
+    // Ordenar categorias do maior para o menor valor
+    const categoriasOrdenadas = Object.entries(categorias)
+        .sort(([,a], [,b]) => b - a)
+        .reduce((obj, [key, value]) => {
+            obj[key] = value;
+            return obj;
+        }, {});
+    
+    if (categoriaChart) {
+        categoriaChart.destroy();
+    }
+    
+    const ctx = document.getElementById('categoriaChart').getContext('2d');
+    const configTema = obterConfiguracaoTema();
+    
+    categoriaChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(categoriasOrdenadas),
+            datasets: [{
+                data: Object.values(categoriasOrdenadas),
+                backgroundColor: PFP_CONFIG.CORES_GRAFICO,
+                borderWidth: 1,
+                borderColor: configTema.borderColor
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: configTema.backgroundColor,
+                    titleColor: configTema.color,
+                    bodyColor: configTema.color,
+                    borderColor: configTema.borderColor,
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed.y;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: configTema.color
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: configTema.color,
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de categorias filtrado
+async function carregarGraficoCategoriasFiltrado(comprasFiltradas) {
+    const categorias = {};
+    comprasFiltradas.forEach(compra => {
+        if (!categorias[compra.categoria]) {
+            categorias[compra.categoria] = 0;
+        }
+        categorias[compra.categoria] += compra.valor;
+    });
+    
+    // Ordenar categorias do maior para o menor valor
+    const categoriasOrdenadas = Object.entries(categorias)
+        .sort(([,a], [,b]) => b - a)
+        .reduce((obj, [key, value]) => {
+            obj[key] = value;
+            return obj;
+        }, {});
+    
+    if (categoriaChart) {
+        categoriaChart.destroy();
+    }
+    
+    const ctx = document.getElementById('categoriaChart').getContext('2d');
+    const configTema = obterConfiguracaoTema();
+    
+    categoriaChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(categoriasOrdenadas),
+            datasets: [{
+                data: Object.values(categoriasOrdenadas),
+                backgroundColor: PFP_CONFIG.CORES_GRAFICO,
+                borderWidth: 1,
+                borderColor: configTema.borderColor
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: configTema.backgroundColor,
+                    titleColor: configTema.color,
+                    bodyColor: configTema.color,
+                    borderColor: configTema.borderColor,
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed.y;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: configTema.color
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: configTema.color,
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de bancos filtrado
+async function carregarGraficoBancosFiltrado(comprasFiltradas) {
+    const bancos = {};
+    comprasFiltradas.forEach(compra => {
+        if (!bancos[compra.banco]) {
+            bancos[compra.banco] = 0;
+        }
+        bancos[compra.banco] += compra.valor;
+    });
+    
+    if (bancoChart) {
+        bancoChart.destroy();
+    }
+    
+    const ctx = document.getElementById('bancoChart').getContext('2d');
+    const configTema = obterConfiguracaoTema();
+    
+    bancoChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(bancos),
+            datasets: [{
+                label: 'Gastos por Banco',
+                data: Object.values(bancos),
+                backgroundColor: getCoresBancos(Object.keys(bancos)),
+                borderWidth: 1,
+                borderColor: configTema.borderColor
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: configTema.backgroundColor,
+                    titleColor: configTema.color,
+                    bodyColor: configTema.color,
+                    borderColor: configTema.borderColor,
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${formatCurrency(context.parsed.y)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: configTema.color
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: configTema.color,
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de bancos
+async function carregarGraficoBancos() {
+    const bancos = {};
+    compras.forEach(compra => {
+        if (!bancos[compra.banco]) {
+            bancos[compra.banco] = 0;
+        }
+        bancos[compra.banco] += compra.valor;
+    });
+    
+    if (bancoChart) {
+        bancoChart.destroy();
+    }
+    
+    const ctx = document.getElementById('bancoChart').getContext('2d');
+    const configTema = obterConfiguracaoTema();
+    
+    bancoChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(bancos),
+            datasets: [{
+                label: 'Gastos por Banco',
+                data: Object.values(bancos),
+                backgroundColor: getCoresBancos(Object.keys(bancos)),
+                borderWidth: 1,
+                borderColor: configTema.borderColor
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: configTema.backgroundColor,
+                    titleColor: configTema.color,
+                    bodyColor: configTema.color,
+                    borderColor: configTema.borderColor,
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${formatCurrency(context.parsed.y)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: configTema.color
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: configTema.color,
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        color: configTema.grid.color
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Função para obter cores específicas dos bancos
+function getCoresBancos(bancos) {
+    const coresBancos = {
+        'Nubank': '#8B5CF6', // Roxo
+        'Itaú': '#F97316'    // Laranja
+    };
+    
+    return bancos.map(banco => coresBancos[banco] || '#6B7280'); // Cinza para outros bancos
+}
+
+// Preencher filtros
+function preencherFiltros() {
+    // Filtro de categoria
+    const categorias = [...new Set(compras.map(c => c.categoria))].sort();
+    const filtroCategoria = document.getElementById('filtroCategoria');
+    filtroCategoria.innerHTML = '<option value="">Todas</option>';
+    categorias.forEach(categoria => {
+        filtroCategoria.innerHTML += `<option value="${categoria}">${categoria}</option>`;
+    });
+    
+    // Filtro de banco
+    const bancos = [...new Set(compras.map(c => c.banco))].sort();
+    const filtroBanco = document.getElementById('filtroBanco');
+    filtroBanco.innerHTML = '<option value="">Todos</option>';
+    bancos.forEach(banco => {
+        filtroBanco.innerHTML += `<option value="${banco}">${banco}</option>`;
+    });
+    
+    // Filtro de ano
+    const anos = [...new Set(compras.map(c => new Date(c.data).getFullYear()))].sort();
+    const filtroAno = document.getElementById('filtroAno');
+    filtroAno.innerHTML = '<option value="">Todos</option>';
+    anos.forEach(ano => {
+        filtroAno.innerHTML += `<option value="${ano}">${ano}</option>`;
+    });
+}
+
+// Aplicar filtros
+function aplicarFiltros() {
+    const categoria = document.getElementById('filtroCategoria').value;
+    const banco = document.getElementById('filtroBanco').value;
+    const mes = document.getElementById('filtroMes').value;
+    const ano = document.getElementById('filtroAno').value;
+    const dataInicio = document.getElementById('filtroDataInicio').value;
+    const dataFim = document.getElementById('filtroDataFim').value;
+    
+    let comprasFiltradas = compras;
+    
+    if (categoria) {
+        comprasFiltradas = comprasFiltradas.filter(c => c.categoria === categoria);
+    }
+    
+    if (banco) {
+        comprasFiltradas = comprasFiltradas.filter(c => c.banco === banco);
+    }
+    
+    if (mes) {
+        comprasFiltradas = comprasFiltradas.filter(c => {
+            const dataCompra = new Date(c.data);
+            return dataCompra.getMonth() + 1 === parseInt(mes);
+        });
+    }
+    
+    if (ano) {
+        comprasFiltradas = comprasFiltradas.filter(c => {
+            const dataCompra = new Date(c.data);
+            return dataCompra.getFullYear() === parseInt(ano);
+        });
+    }
+    
+    if (dataInicio) {
+        comprasFiltradas = comprasFiltradas.filter(c => c.data >= dataInicio);
+    }
+    
+    if (dataFim) {
+        comprasFiltradas = comprasFiltradas.filter(c => c.data <= dataFim);
+    }
+    
+    // Aplicar filtros a toda a página
+    renderizarCompras(comprasFiltradas);
+    atualizarEstatisticasFiltradas(comprasFiltradas);
+    carregarGraficosFiltrados(comprasFiltradas);
+}
+
+// Limpar filtros
+function limparFiltros() {
+    document.getElementById('filtroCategoria').value = '';
+    document.getElementById('filtroBanco').value = '';
+    document.getElementById('filtroMes').value = '';
+    document.getElementById('filtroAno').value = '';
+    document.getElementById('filtroDataInicio').value = '';
+    document.getElementById('filtroDataFim').value = '';
+    
+    // Restaurar dados originais
+    renderizarCompras();
+    atualizarEstatisticas();
+    carregarGraficos();
+}
+
+// Abrir modal para nova compra
+function abrirModalCompra() {
+    compraEditando = null;
+    document.getElementById('compraModalTitle').innerHTML = '<i class="bi bi-plus-circle"></i> Nova Compra';
+    document.getElementById('compraForm').reset();
+    document.getElementById('dataCompra').value = new Date().toISOString().split('T')[0];
+    
+    const modal = new bootstrap.Modal(document.getElementById('compraModal'));
+    modal.show();
+}
+
+// Editar compra
+function editarCompra(compraId) {
+    const compra = compras.find(c => c.id === compraId);
+    if (!compra) return;
+    
+    compraEditando = compra;
+    document.getElementById('compraModalTitle').innerHTML = '<i class="bi bi-pencil"></i> Editar Compra';
+    document.getElementById('dataCompra').value = compra.data;
+    document.getElementById('gastoCompra').value = compra.gasto;
+    document.getElementById('categoriaCompra').value = compra.categoria;
+    document.getElementById('bancoCompra').value = compra.banco;
+    document.getElementById('valorCompra').value = compra.valor;
+    
+    const modal = new bootstrap.Modal(document.getElementById('compraModal'));
+    modal.show();
+}
+
+// Salvar compra
+document.getElementById('salvarCompra').addEventListener('click', async function() {
+    const formData = {
+        data: document.getElementById('dataCompra').value,
+        gasto: document.getElementById('gastoCompra').value,
+        categoria: document.getElementById('categoriaCompra').value,
+        banco: document.getElementById('bancoCompra').value,
+        valor: parseFloat(document.getElementById('valorCompra').value)
+    };
+    
+    try {
+        if (compraEditando) {
+            await apiRequest(`/api/compras/${compraEditando.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+            showNotification('Compra atualizada com sucesso!');
+        } else {
+            await apiRequest('/api/compras', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            showNotification('Compra adicionada com sucesso!');
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('compraModal')).hide();
+        carregarCompras();
+        
+    } catch (error) {
+        console.error('Erro ao salvar compra:', error);
+    }
+});
+
+// Deletar compra
+async function deletarCompra(compraId) {
+    if (!confirm('Tem certeza que deseja deletar esta compra?')) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/api/compras/${compraId}`, {
+            method: 'DELETE'
+        });
+        showNotification('Compra deletada com sucesso!');
+        carregarCompras();
+    } catch (error) {
+        console.error('Erro ao deletar compra:', error);
+    }
+}
+
+// Exportar compras
+function exportarCompras() {
+    const comprasParaExportar = compras.map(compra => ({
+        Data: formatDate(compra.data),
+        Gasto: compra.gasto,
+        Categoria: compra.categoria,
+        Banco: compra.banco,
+        Valor: compra.valor
+    }));
+    
+    const csv = [
+        Object.keys(comprasParaExportar[0]).join(','),
+        ...comprasParaExportar.map(row => Object.values(row).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compras_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showNotification('Arquivo CSV exportado com sucesso!');
+}
+
+
+
+// Resetar formulário quando modal for fechado
+document.getElementById('compraModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('compraForm').reset();
+    compraEditando = null;
+});
+
+// Função para atualizar gráficos quando o tema mudar
+function atualizarGraficosTema() {
+    if (categoriaChart) {
+        carregarGraficoCategorias();
+    }
+    if (bancoChart) {
+        carregarGraficoBancos();
+    }
+}
+
+// Adicionar listener para mudança de tema
+document.addEventListener('DOMContentLoaded', function() {
+    // Observar mudanças no atributo data-theme
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                atualizarGraficosTema();
+            }
+        });
+    });
+    
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
+});
+</script>
+{% endblock %} 

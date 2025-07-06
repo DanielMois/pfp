@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}PFP - Resumo{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="text-center mb-4">
+                <i class="bi bi-graph-up text-primary"></i>
+                Resumo Financeiro
+            </h1>
+        </div>
+    </div>
+
+    <!-- Cards de Saldo Detalhados -->
+    <div class="row mb-4" id="saldos-detalhados">
+        <div class="col-12">
+            <h3 class="mb-3">
+                <i class="bi bi-cash-stack"></i> Saldos Detalhados
+            </h3>
+        </div>
+        <!-- Cards serão carregados dinamicamente -->
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart"></i> Distribuição dos Saldos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="saldoChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart"></i> Gastos por Categoria
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoriaChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Evolução Mensal -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up"></i> Evolução dos Gastos Mensais
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="evolucaoChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histórico de Alterações -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i> Histórico de Alterações
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="historicoTable">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Tipo de Operação</th>
+                                    <th>Valor Anterior</th>
+                                    <th>Valor Novo</th>
+                                    <th>Diferença</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dados serão carregados dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let saldoChart, categoriaChart, evolucaoChart;
+let saldos = [];
+
+// Carregar dados iniciais
+document.addEventListener('DOMContentLoaded', async function() {
+    await carregarSaldosDetalhados();
+    await carregarGraficos();
+    await carregarHistorico();
+});
+
+// Carregar saldos detalhados
+async function carregarSaldosDetalhados() {
+    try {
+        const response = await apiRequest('/api/saldos');
+        saldos = response;
+        renderizarSaldosDetalhados();
+    } catch (error) {
+        console.error('Erro ao carregar saldos:', error);
+    }
+}
+
+// Renderizar saldos detalhados
+function renderizarSaldosDetalhados() {
+    const container = document.getElementById('saldos-detalhados');
+    const tiposSaldo = [
+        { tipo: 'disponivel', nome: 'Saldo Disponível', icon: 'bi-wallet', color: '#3498db' },
+        { tipo: 'guardado', nome: 'Saldo Guardado', icon: 'bi-piggy-bank', color: '#27ae60' },
+        { tipo: 'investido', nome: 'Saldo Investido', icon: 'bi-graph-up-arrow', color: '#9b59b6' },
+        { tipo: 'dinheiro_fisico', nome: 'Saldo em Dinheiro Físico', icon: 'bi-cash', color: '#f39c12' }
+    ];
+    
+    let html = '';
+    tiposSaldo.forEach(tipo => {
+        const saldo = saldos.find(s => s.tipo === tipo.tipo);
+        const valor = saldo ? saldo.valor : 0;
+        const dataAtualizacao = saldo ? formatDate(saldo.data_atualizacao) : 'N/A';
+        
+        html += `
+            <div class="col-md-6 col-lg-3 mb-3">
+                <div class="stats-card">
+                    <div class="icon" style="color: ${tipo.color}">
+                        <i class="bi ${tipo.icon}"></i>
+                    </div>
+                    <div class="title">${tipo.nome}</div>
+                    <div class="value">${formatCurrency(valor)}</div>
+                    <small class="text-muted">Atualizado: ${dataAtualizacao}</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Carregar gráficos
+async function carregarGraficos() {
+    await carregarGraficoSaldos();
+    await carregarGraficoCategorias();
+    await carregarGraficoEvolucao();
+}
+
+// Gráfico de distribuição dos saldos
+async function carregarGraficoSaldos() {
+    const tiposSaldo = [
+        { tipo: 'disponivel', nome: 'Disponível', color: '#3498db' },
+        { tipo: 'guardado', nome: 'Guardado', color: '#27ae60' },
+        { tipo: 'investido', nome: 'Investido', color: '#9b59b6' },
+        { tipo: 'dinheiro_fisico', nome: 'Dinheiro Físico', color: '#f39c12' }
+    ];
+    
+    const dados = tiposSaldo.map(tipo => {
+        const saldo = saldos.find(s => s.tipo === tipo.tipo);
+        const valor = saldo ? saldo.valor : 0;
+        return {
+            label: tipo.nome,
+            value: valor,
+            color: tipo.color
+        };
+    });
+    
+    // Verificar se há algum saldo com valor maior que 0
+    const temSaldo = dados.some(d => d.value > 0);
+    
+    if (saldoChart) {
+        saldoChart.destroy();
+    }
+    
+    const ctx = document.getElementById('saldoChart').getContext('2d');
+    
+    if (!temSaldo) {
+        // Mostrar mensagem quando não há saldos
+        const configTema = obterConfiguracaoTema();
+        
+        saldoChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Sem dados'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#e9ecef'],
+                    borderWidth: 1,
+                    borderColor: configTema.borderColor
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: configTema.backgroundColor,
+                        titleColor: configTema.color,
+                        bodyColor: configTema.color,
+                        borderColor: configTema.borderColor,
+                        callbacks: {
+                            label: function(context) {
+                                return 'Nenhum saldo cadastrado';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: configTema.color
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: configTema.color,
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        // Mostrar apenas saldos com valor maior que 0, ordenados do maior para o menor
+        const dadosComValor = dados.filter(d => d.value > 0);
+        
+        // Ordenar do maior para o menor valor
+        const dadosOrdenados = dadosComValor.sort((a, b) => b.value - a.value);
+        
+        const configTema = obterConfiguracaoTema();
+        
+        saldoChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dadosOrdenados.map(d => d.label),
+                datasets: [{
+                    data: dadosOrdenados.map(d => d.value),
+                    backgroundColor: dadosOrdenados.map(d => d.color),
+                    borderWidth: 1,
+                    borderColor: configTema.borderColor
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: configTema.backgroundColor,
+                        titleColor: configTema.color,
+                        bodyColor: configTema.color,
+                        borderColor: configTema.borderColor,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: configTema.color
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: configTema.color,
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Gráfico de gastos por categoria
+async function carregarGraficoCategorias() {
+    try {
+        const response = await apiRequest('/api/estatisticas/resumo');
+        const categorias = response.gastos_por_categoria;
+        
+        if (categoriaChart) {
+            categoriaChart.destroy();
+        }
+        
+        const ctx = document.getElementById('categoriaChart').getContext('2d');
+        const configTema = obterConfiguracaoTema();
+        
+        categoriaChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: categorias.map(c => c.categoria),
+                datasets: [{
+                    label: 'Gastos por Categoria',
+                    data: categorias.map(c => c.total),
+                    backgroundColor: PFP_CONFIG.CORES_GRAFICO,
+                    borderWidth: 1,
+                    borderColor: configTema.borderColor
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: configTema.backgroundColor,
+                        titleColor: configTema.color,
+                        bodyColor: configTema.color,
+                        borderColor: configTema.borderColor,
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.label}: ${formatCurrency(context.parsed.y)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: configTema.color
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: configTema.color,
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao carregar gráfico de categorias:', error);
+    }
+}
+
+// Gráfico de evolução mensal
+async function carregarGraficoEvolucao() {
+    try {
+        const compras = await apiRequest('/api/compras');
+        
+        // Agrupar compras por mês
+        const gastosPorMes = {};
+        compras.forEach(compra => {
+            const data = new Date(compra.data);
+            const mesAno = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (!gastosPorMes[mesAno]) {
+                gastosPorMes[mesAno] = 0;
+            }
+            gastosPorMes[mesAno] += compra.valor;
+        });
+        
+        // Ordenar por data
+        const meses = Object.keys(gastosPorMes).sort();
+        const valores = meses.map(mes => gastosPorMes[mes]);
+        
+        if (evolucaoChart) {
+            evolucaoChart.destroy();
+        }
+        
+        const ctx = document.getElementById('evolucaoChart').getContext('2d');
+        const configTema = obterConfiguracaoTema();
+        
+        evolucaoChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: meses.map(mes => {
+                    const [ano, mesNum] = mes.split('-');
+                    return `${mesNum}/${ano}`;
+                }),
+                datasets: [{
+                    label: 'Gastos Mensais',
+                    data: valores,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: configTema.backgroundColor,
+                        titleColor: configTema.color,
+                        bodyColor: configTema.color,
+                        borderColor: configTema.borderColor,
+                        callbacks: {
+                            label: function(context) {
+                                return `Gastos: ${formatCurrency(context.parsed.y)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: configTema.color
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: configTema.color,
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        },
+                        grid: {
+                            color: configTema.grid.color
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao carregar gráfico de evolução:', error);
+    }
+}
+
+// Carregar histórico
+async function carregarHistorico() {
+    try {
+        const response = await apiRequest('/api/saldos/historico');
+        const tbody = document.querySelector('#historicoTable tbody');
+        
+        let html = '';
+        response.forEach(item => {
+            const diferenca = item.valor_novo - item.valor_anterior;
+            const diferencaClass = diferenca >= 0 ? 'text-success' : 'text-danger';
+            const diferencaIcon = diferenca >= 0 ? 'bi-arrow-up' : 'bi-arrow-down';
+            
+            html += `
+                <tr>
+                    <td>${formatDate(item.data_alteracao)}</td>
+                    <td>
+                        <span class="badge bg-${getBadgeColor(item.tipo_operacao)}">
+                            ${getOperacaoNome(item.tipo_operacao)}
+                        </span>
+                    </td>
+                    <td>${formatCurrency(item.valor_anterior)}</td>
+                    <td>${formatCurrency(item.valor_novo)}</td>
+                    <td class="${diferencaClass}">
+                        <i class="bi ${diferencaIcon}"></i>
+                        ${formatCurrency(Math.abs(diferenca))}
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+    }
+}
+
+// Funções auxiliares
+function getBadgeColor(tipoOperacao) {
+    switch (tipoOperacao) {
+        case 'criacao': return 'success';
+        case 'atualizacao': return 'primary';
+        case 'exclusao': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+function getOperacaoNome(tipoOperacao) {
+    switch (tipoOperacao) {
+        case 'criacao': return 'Criação';
+        case 'atualizacao': return 'Atualização';
+        case 'exclusao': return 'Exclusão';
+        default: return tipoOperacao;
+    }
+}
+
+// Função para atualizar gráficos quando o tema mudar
+function atualizarGraficosTema() {
+    if (saldoChart) {
+        carregarGraficoSaldos();
+    }
+    if (categoriaChart) {
+        carregarGraficoCategorias();
+    }
+    if (evolucaoChart) {
+        carregarGraficoEvolucao();
+    }
+}
+
+// Adicionar listener para mudança de tema
+document.addEventListener('DOMContentLoaded', function() {
+    // Observar mudanças no atributo data-theme
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                atualizarGraficosTema();
+            }
+        });
+    });
+    
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
+});
+</script>
+{% endblock %} 
