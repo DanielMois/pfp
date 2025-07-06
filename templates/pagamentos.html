@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block title %}Pagamentos Recebidos - PFP{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-cash-stack"></i> Pagamentos Recebidos</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalPagamento">
+                    <i class="bi bi-plus-circle"></i> Novo Pagamento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="icon">
+                    <i class="bi bi-cash-stack text-success"></i>
+                </div>
+                <div class="title">Total Recebido</div>
+                <div class="value" id="totalRecebido">R$ 0,00</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="icon">
+                    <i class="bi bi-calendar-check text-primary"></i>
+                </div>
+                <div class="title">Este Mês</div>
+                <div class="value" id="totalMes">R$ 0,00</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="icon">
+                    <i class="bi bi-graph-up text-warning"></i>
+                </div>
+                <div class="title">Média Mensal</div>
+                <div class="value" id="mediaMensal">R$ 0,00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <label for="filtroCategoria" class="form-label">Categoria</label>
+            <select class="form-select" id="filtroCategoria">
+                <option value="">Todas as categorias</option>
+                <option value="Salário">Salário</option>
+                <option value="Férias">Férias</option>
+                <option value="PIX">PIX</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="filtroMes" class="form-label">Mês/Ano</label>
+            <input type="month" class="form-control" id="filtroMes">
+        </div>
+        <div class="col-md-3">
+            <label for="filtroDataInicio" class="form-label">Data Início</label>
+            <input type="date" class="form-control" id="filtroDataInicio">
+        </div>
+        <div class="col-md-3">
+            <label for="filtroDataFim" class="form-label">Data Fim</label>
+            <input type="date" class="form-control" id="filtroDataFim">
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Pagamentos por Categoria</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="graficoCategoria" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Evolução Mensal</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="graficoEvolucao" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Pagamentos -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Lista de Pagamentos</h5>
+            <button class="btn btn-outline-success btn-sm" onclick="exportarCSV()">
+                <i class="bi bi-download"></i> Exportar CSV
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="tabelaPagamentos">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Valor</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyPagamentos">
+                        <!-- Dados serão carregados via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Adicionar/Editar Pagamento -->
+<div class="modal fade" id="modalPagamento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">
+                    <i class="bi bi-plus-circle"></i> Novo Pagamento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formPagamento">
+                    <input type="hidden" id="pagamentoId">
+                    
+                    <div class="mb-3">
+                        <label for="dataPagamento" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="dataPagamento" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descricaoPagamento" class="form-label">Descrição</label>
+                        <input type="text" class="form-control" id="descricaoPagamento" placeholder="Ex: Salário Janeiro 2024" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categoriaPagamento" class="form-label">Categoria</label>
+                        <select class="form-select" id="categoriaPagamento" required>
+                            <option value="">Selecione uma categoria</option>
+                            <option value="Salário">Salário</option>
+                            <option value="Férias">Férias</option>
+                            <option value="PIX">PIX</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="valorPagamento" class="form-label">Valor</label>
+                        <input type="number" class="form-control" id="valorPagamento" step="0.01" min="0" placeholder="0,00" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarPagamento()">
+                    <i class="bi bi-check-circle"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="modal fade" id="modalConfirmacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir este pagamento?</p>
+                <p class="text-muted">Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarExclusao()">
+                    <i class="bi bi-trash"></i> Excluir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .categoria-salario { background-color: #d4edda !important; }
+    .categoria-ferias { background-color: #fff3cd !important; }
+    .categoria-pix { background-color: #d1ecf1 !important; }
+    
+    [data-theme="dark"] .categoria-salario { background-color: #1e4d2b !important; }
+    [data-theme="dark"] .categoria-ferias { background-color: #4d3e1e !important; }
+    [data-theme="dark"] .categoria-pix { background-color: #1e3d4d !important; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pagamentos = [];
+let pagamentoParaExcluir = null;
+let graficoCategoria = null;
+let graficoEvolucao = null;
+
+// Carregar dados ao iniciar a página
+document.addEventListener('DOMContentLoaded', function() {
+    carregarPagamentos();
+    configurarFiltros();
+    
+    // Definir data atual no filtro de mês
+    const hoje = new Date();
+    document.getElementById('filtroMes').value = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+});
+
+// Carregar pagamentos da API
+async function carregarPagamentos() {
+    try {
+        const response = await fetch('/api/pagamentos');
+        pagamentos = await response.json();
+        atualizarTabela();
+        atualizarEstatisticas();
+        atualizarGraficos();
+    } catch (error) {
+        console.error('Erro ao carregar pagamentos:', error);
+        mostrarAlerta('Erro ao carregar pagamentos', 'danger');
+    }
+}
+
+// Atualizar tabela de pagamentos
+function atualizarTabela() {
+    const tbody = document.getElementById('tbodyPagamentos');
+    tbody.innerHTML = '';
+    
+    pagamentos.forEach(pagamento => {
+        const tr = document.createElement('tr');
+        tr.className = `categoria-${pagamento.categoria.toLowerCase().replace('ç', 'c').replace('ã', 'a')}`;
+        
+        tr.innerHTML = `
+            <td>${formatarData(pagamento.data)}</td>
+            <td>${pagamento.descricao}</td>
+            <td><span class="badge bg-primary">${pagamento.categoria}</span></td>
+            <td class="fw-bold text-success">${formatCurrency(pagamento.valor)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editarPagamento(${pagamento.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="excluirPagamento(${pagamento.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+}
+
+// Atualizar estatísticas
+function atualizarEstatisticas() {
+    const totalRecebido = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+    const hoje = new Date();
+    const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    
+    const pagamentosMes = pagamentos.filter(p => p.data.startsWith(mesAtual));
+    const totalMes = pagamentosMes.reduce((sum, p) => sum + p.valor, 0);
+    
+    // Calcular média mensal (últimos 6 meses)
+    const ultimos6Meses = [];
+    for (let i = 0; i < 6; i++) {
+        const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const mes = data.getFullYear() + '-' + String(data.getMonth() + 1).padStart(2, '0');
+        ultimos6Meses.push(mes);
+    }
+    
+    const pagamentos6Meses = pagamentos.filter(p => ultimos6Meses.includes(p.data.substring(0, 7)));
+    const mediaMensal = pagamentos6Meses.length > 0 ? 
+        pagamentos6Meses.reduce((sum, p) => sum + p.valor, 0) / 6 : 0;
+    
+    document.getElementById('totalRecebido').textContent = formatCurrency(totalRecebido);
+    document.getElementById('totalMes').textContent = formatCurrency(totalMes);
+    document.getElementById('mediaMensal').textContent = formatCurrency(mediaMensal);
+}
+
+// Atualizar gráficos
+function atualizarGraficos() {
+    atualizarGraficoCategoria();
+    atualizarGraficoEvolucao();
+}
+
+// Gráfico de pizza por categoria
+function atualizarGraficoCategoria() {
+    const ctx = document.getElementById('graficoCategoria').getContext('2d');
+    
+    if (graficoCategoria) {
+        graficoCategoria.destroy();
+    }
+    
+    const categorias = {};
+    pagamentos.forEach(p => {
+        if (!categorias[p.categoria]) {
+            categorias[p.categoria] = 0;
+        }
+        categorias[p.categoria] += p.valor;
+    });
+    
+    const cores = ['#28a745', '#ffc107', '#17a2b8'];
+    
+    graficoCategoria = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(categorias),
+            datasets: [{
+                data: Object.values(categorias),
+                backgroundColor: cores,
+                borderWidth: 2,
+                borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d2d2d' : '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de linha - evolução mensal
+function atualizarGraficoEvolucao() {
+    const ctx = document.getElementById('graficoEvolucao').getContext('2d');
+    
+    if (graficoEvolucao) {
+        graficoEvolucao.destroy();
+    }
+    
+    // Agrupar por mês
+    const meses = {};
+    pagamentos.forEach(p => {
+        const mes = p.data.substring(0, 7);
+        if (!meses[mes]) {
+            meses[mes] = 0;
+        }
+        meses[mes] += p.valor;
+    });
+    
+    const labels = Object.keys(meses).sort();
+    const dados = labels.map(mes => meses[mes]);
+    
+    graficoEvolucao = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(mes => {
+                const [ano, mesNum] = mes.split('-');
+                return `${mesNum}/${ano}`;
+            }),
+            datasets: [{
+                label: 'Pagamentos Recebidos',
+                data: dados,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529',
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#404040' : '#dee2e6'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
+                    },
+                    grid: {
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#404040' : '#dee2e6'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Configurar filtros
+function configurarFiltros() {
+    const filtros = ['filtroCategoria', 'filtroMes', 'filtroDataInicio', 'filtroDataFim'];
+    
+    filtros.forEach(id => {
+        document.getElementById(id).addEventListener('change', aplicarFiltros);
+    });
+}
+
+// Aplicar filtros
+function aplicarFiltros() {
+    const categoria = document.getElementById('filtroCategoria').value;
+    const mes = document.getElementById('filtroMes').value;
+    const dataInicio = document.getElementById('filtroDataInicio').value;
+    const dataFim = document.getElementById('filtroDataFim').value;
+    
+    let pagamentosFiltrados = pagamentos;
+    
+    if (categoria) {
+        pagamentosFiltrados = pagamentosFiltrados.filter(p => p.categoria === categoria);
+    }
+    
+    if (mes) {
+        pagamentosFiltrados = pagamentosFiltrados.filter(p => p.data.startsWith(mes));
+    }
+    
+    if (dataInicio) {
+        pagamentosFiltrados = pagamentosFiltrados.filter(p => p.data >= dataInicio);
+    }
+    
+    if (dataFim) {
+        pagamentosFiltrados = pagamentosFiltrados.filter(p => p.data <= dataFim);
+    }
+    
+    atualizarTabelaComFiltros(pagamentosFiltrados);
+}
+
+// Atualizar tabela com filtros aplicados
+function atualizarTabelaComFiltros(pagamentosFiltrados) {
+    const tbody = document.getElementById('tbodyPagamentos');
+    tbody.innerHTML = '';
+    
+    pagamentosFiltrados.forEach(pagamento => {
+        const tr = document.createElement('tr');
+        tr.className = `categoria-${pagamento.categoria.toLowerCase().replace('ç', 'c').replace('ã', 'a')}`;
+        
+        tr.innerHTML = `
+            <td>${formatarData(pagamento.data)}</td>
+            <td>${pagamento.descricao}</td>
+            <td><span class="badge bg-primary">${pagamento.categoria}</span></td>
+            <td class="fw-bold text-success">${formatCurrency(pagamento.valor)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editarPagamento(${pagamento.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="excluirPagamento(${pagamento.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+}
+
+// Salvar pagamento (criar ou atualizar)
+async function salvarPagamento() {
+    const id = document.getElementById('pagamentoId').value;
+    const data = {
+        data: document.getElementById('dataPagamento').value,
+        descricao: document.getElementById('descricaoPagamento').value,
+        categoria: document.getElementById('categoriaPagamento').value,
+        valor: parseFloat(document.getElementById('valorPagamento').value)
+    };
+    
+    try {
+        const url = id ? `/api/pagamentos/${id}` : '/api/pagamentos';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalPagamento'));
+            modal.hide();
+            limparFormulario();
+            carregarPagamentos();
+            mostrarAlerta('Pagamento salvo com sucesso!', 'success');
+        } else {
+            const error = await response.json();
+            mostrarAlerta(error.error || 'Erro ao salvar pagamento', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar pagamento:', error);
+        mostrarAlerta('Erro ao salvar pagamento', 'danger');
+    }
+}
+
+// Editar pagamento
+function editarPagamento(id) {
+    const pagamento = pagamentos.find(p => p.id === id);
+    if (!pagamento) return;
+    
+    document.getElementById('pagamentoId').value = pagamento.id;
+    document.getElementById('dataPagamento').value = pagamento.data;
+    document.getElementById('descricaoPagamento').value = pagamento.descricao;
+    document.getElementById('categoriaPagamento').value = pagamento.categoria;
+    document.getElementById('valorPagamento').value = pagamento.valor;
+    
+    document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Editar Pagamento';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalPagamento'));
+    modal.show();
+}
+
+// Excluir pagamento
+function excluirPagamento(id) {
+    pagamentoParaExcluir = id;
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
+    modal.show();
+}
+
+// Confirmar exclusão
+async function confirmarExclusao() {
+    if (!pagamentoParaExcluir) return;
+    
+    try {
+        const response = await fetch(`/api/pagamentos/${pagamentoParaExcluir}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'));
+            modal.hide();
+            carregarPagamentos();
+            mostrarAlerta('Pagamento excluído com sucesso!', 'success');
+        } else {
+            mostrarAlerta('Erro ao excluir pagamento', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir pagamento:', error);
+        mostrarAlerta('Erro ao excluir pagamento', 'danger');
+    }
+    
+    pagamentoParaExcluir = null;
+}
+
+// Limpar formulário
+function limparFormulario() {
+    document.getElementById('pagamentoId').value = '';
+    document.getElementById('dataPagamento').value = '';
+    document.getElementById('descricaoPagamento').value = '';
+    document.getElementById('categoriaPagamento').value = '';
+    document.getElementById('valorPagamento').value = '';
+    document.getElementById('modalTitle').innerHTML = '<i class="bi bi-plus-circle"></i> Novo Pagamento';
+}
+
+// Exportar CSV
+function exportarCSV() {
+    const headers = ['Data', 'Descrição', 'Categoria', 'Valor'];
+    const dados = pagamentos.map(p => [
+        p.data,
+        p.descricao,
+        p.categoria,
+        p.valor.toFixed(2)
+    ]);
+    
+    const csvContent = [headers, ...dados]
+        .map(row => row.map(cell => `"${cell}"`).join(','))
+        .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `pagamentos_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    mostrarAlerta('Arquivo CSV exportado com sucesso!', 'success');
+}
+
+// Funções auxiliares
+function formatarData(data) {
+    return new Date(data).toLocaleDateString('pt-BR');
+}
+
+function mostrarAlerta(mensagem, tipo) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${mensagem}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Limpar formulário quando modal for fechado
+document.getElementById('modalPagamento').addEventListener('hidden.bs.modal', function () {
+    limparFormulario();
+});
+</script>
+{% endblock %} 

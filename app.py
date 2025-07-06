@@ -75,6 +75,22 @@ class CompraDebito(db.Model):
             'valor': self.valor
         }
 
+class PagamentoRecebido(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.Date, nullable=False)
+    descricao = db.Column(db.String(200), nullable=False)
+    categoria = db.Column(db.String(100), nullable=False)  # 'Salário', 'Férias', 'PIX'
+    valor = db.Column(db.Float, nullable=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'data': self.data.strftime('%Y-%m-%d'),
+            'descricao': self.descricao,
+            'categoria': self.categoria,
+            'valor': self.valor
+        }
+
 
 
 # Rotas principais
@@ -95,6 +111,10 @@ def credito():
 @app.route('/debito')
 def debito():
     return render_template('debito.html')
+
+@app.route('/pagamentos')
+def pagamentos():
+    return render_template('pagamentos.html')
 
 
 
@@ -331,7 +351,103 @@ def deletar_compra_debito(compra_id):
     
     return jsonify({'message': 'Compra deletada com sucesso'})
 
+# API Routes para Pagamentos Recebidos
+@app.route('/api/pagamentos', methods=['GET'])
+def get_pagamentos():
+    pagamentos = PagamentoRecebido.query.order_by(PagamentoRecebido.data.desc()).all()
+    return jsonify([pagamento.to_dict() for pagamento in pagamentos])
 
+@app.route('/api/pagamentos', methods=['POST'])
+def criar_pagamento():
+    data = request.get_json()
+    
+    novo_pagamento = PagamentoRecebido(
+        data=datetime.strptime(data['data'], '%Y-%m-%d').date(),
+        descricao=data['descricao'],
+        categoria=data['categoria'],
+        valor=data['valor']
+    )
+    
+    db.session.add(novo_pagamento)
+    db.session.commit()
+    
+    # Atualizar saldo disponível (adicionar o valor do pagamento)
+    saldo_disponivel = Saldo.query.filter_by(tipo='disponivel').first()
+    if saldo_disponivel:
+        valor_anterior = saldo_disponivel.valor
+        saldo_disponivel.valor += data['valor']
+        saldo_disponivel.data_atualizacao = datetime.utcnow()
+        
+        # Registrar no histórico
+        historico = HistoricoSaldo(
+            saldo_id=saldo_disponivel.id,
+            valor_anterior=valor_anterior,
+            valor_novo=saldo_disponivel.valor,
+            tipo_operacao='atualizacao'
+        )
+        db.session.add(historico)
+        db.session.commit()
+    
+    return jsonify(novo_pagamento.to_dict()), 201
+
+@app.route('/api/pagamentos/<int:pagamento_id>', methods=['PUT'])
+def atualizar_pagamento(pagamento_id):
+    pagamento = PagamentoRecebido.query.get_or_404(pagamento_id)
+    data = request.get_json()
+    
+    # Calcular diferença no valor para ajustar o saldo
+    diferenca_valor = data['valor'] - pagamento.valor
+    
+    pagamento.data = datetime.strptime(data['data'], '%Y-%m-%d').date()
+    pagamento.descricao = data['descricao']
+    pagamento.categoria = data['categoria']
+    pagamento.valor = data['valor']
+    
+    # Atualizar saldo disponível se houve mudança no valor
+    if diferenca_valor != 0:
+        saldo_disponivel = Saldo.query.filter_by(tipo='disponivel').first()
+        if saldo_disponivel:
+            valor_anterior = saldo_disponivel.valor
+            saldo_disponivel.valor += diferenca_valor
+            saldo_disponivel.data_atualizacao = datetime.utcnow()
+            
+            # Registrar no histórico
+            historico = HistoricoSaldo(
+                saldo_id=saldo_disponivel.id,
+                valor_anterior=valor_anterior,
+                valor_novo=saldo_disponivel.valor,
+                tipo_operacao='atualizacao'
+            )
+            db.session.add(historico)
+    
+    db.session.commit()
+    
+    return jsonify(pagamento.to_dict())
+
+@app.route('/api/pagamentos/<int:pagamento_id>', methods=['DELETE'])
+def deletar_pagamento(pagamento_id):
+    pagamento = PagamentoRecebido.query.get_or_404(pagamento_id)
+    
+    # Descontar o valor do pagamento do saldo disponível
+    saldo_disponivel = Saldo.query.filter_by(tipo='disponivel').first()
+    if saldo_disponivel:
+        valor_anterior = saldo_disponivel.valor
+        saldo_disponivel.valor -= pagamento.valor
+        saldo_disponivel.data_atualizacao = datetime.utcnow()
+        
+        # Registrar no histórico
+        historico = HistoricoSaldo(
+            saldo_id=saldo_disponivel.id,
+            valor_anterior=valor_anterior,
+            valor_novo=saldo_disponivel.valor,
+            tipo_operacao='atualizacao'
+        )
+        db.session.add(historico)
+    
+    db.session.delete(pagamento)
+    db.session.commit()
+    
+    return jsonify({'message': 'Pagamento deletado com sucesso'})
 
 # API Routes para estatísticas
 @app.route('/api/estatisticas/resumo')
@@ -356,10 +472,19 @@ def get_estatisticas_resumo():
         CompraDebito.data < ultimo_dia_mes
     ).all()
     
+    # Buscar pagamentos do mês atual
+    pagamentos_mes = PagamentoRecebido.query.filter(
+        PagamentoRecebido.data >= primeiro_dia_mes,
+        PagamentoRecebido.data < ultimo_dia_mes
+    ).all()
+    
     # Calcular gasto total do mês (crédito + débito)
     gasto_credito = sum(compra.valor for compra in compras_credito_mes)
     gasto_debito = sum(compra.valor for compra in compras_debito_mes)
     gasto_total = gasto_credito + gasto_debito
+    
+    # Calcular receita total do mês
+    receita_total = sum(pagamento.valor for pagamento in pagamentos_mes)
     
     # Calcular gastos por categoria do mês (combinando crédito e débito)
     categorias = {}
@@ -371,6 +496,7 @@ def get_estatisticas_resumo():
     return jsonify({
         'saldo_total': saldo_total,
         'gasto_medio_mensal': gasto_total,  # Representa o gasto do mês atual
+        'receita_mensal': receita_total,  # Nova informação
         'gastos_por_categoria': [{'categoria': cat, 'total': float(total)} for cat, total in categorias.items()]
     })
 

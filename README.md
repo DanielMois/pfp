@@ -29,6 +29,16 @@ Uma aplicação web moderna e responsiva para controle de gastos financeiros, de
 - **Filtros Idênticos**: Mesma funcionalidade de filtros do crédito
 - **Estatísticas Específicas**: Métricas dedicadas para gastos à vista
 
+### 💵 Pagamentos Recebidos
+- **Receitas Registradas**: Cadastro de todo dinheiro que entra na conta
+- **Categorias Específicas**: Salário, Férias e PIX
+- **Atualização Automática**: Saldo disponível atualizado automaticamente
+- **Gráficos Interativos**: 
+  - Gráfico de pizza por categoria
+  - Evolução mensal dos recebimentos
+- **Filtros Avançados**: Por categoria, mês/ano, período específico
+- **Estatísticas Detalhadas**: Total recebido, média mensal, receitas do mês
+
 ### 📈 Resumo Financeiro
 - **Distribuição de Saldos**: Gráfico de barras ordenado por valor
 - **Gastos por Categoria**: Histograma com cores suaves
@@ -117,7 +127,8 @@ PFP/
 │   ├── index.html        # Dashboard principal
 │   ├── resumo.html       # Página de resumo financeiro
 │   ├── credito.html      # Controle de crédito
-│   └── debito.html       # Controle de débito
+│   ├── debito.html       # Controle de débito
+│   └── pagamentos.html   # Controle de pagamentos recebidos
 ├── static/               # Arquivos estáticos
 │   └── js/
 │       └── config.js     # Configurações e cores da aplicação
@@ -125,6 +136,7 @@ PFP/
     ├── __init__.py
     ├── saldo.py          # Modelo de saldos
     ├── compra.py         # Modelo de compras
+    ├── pagamento.py      # Modelo de pagamentos recebidos
     └── historico.py      # Modelo de histórico
 ```
 
@@ -140,6 +152,12 @@ PFP/
 - **Categorias**: 15 opções predefinidas
 - **Bancos**: Nubank e Itaú
 - **Tabelas**: compras (crédito) e compras_debito (débito)
+
+### PagamentoRecebido
+- **Campos**: id, data, descricao, categoria, valor
+- **Categorias**: Salário, Férias, PIX
+- **Atualização Automática**: Saldo disponível atualizado automaticamente
+- **Tabela**: pagamento_recebido
 
 ### HistoricoSaldo
 - **Campos**: id, saldo_id, valor_anterior, valor_novo, data_alteracao, tipo_operacao
@@ -184,6 +202,12 @@ PFP/
 - ✅ **Update**: Editar informações completas
 - ✅ **Delete**: Remover com confirmação
 
+### Pagamentos Recebidos
+- ✅ **Create**: Cadastrar pagamentos com categoria específica
+- ✅ **Read**: Listar com filtros por categoria e período
+- ✅ **Update**: Editar informações com ajuste automático do saldo
+- ✅ **Delete**: Remover com confirmação e restauração do saldo
+
 ### Histórico
 - ✅ **Automático**: Log de todas as alterações
 - ✅ **Consulta**: Visualização em tabela
@@ -192,9 +216,15 @@ PFP/
 ## 📊 Relatórios e Análises
 
 ### Dashboard
-- **Métricas Principais**: Parcelas do mês, saldo total, compras do mês
+- **Métricas Principais**: Parcelas do mês, saldo total, compras do mês, receitas do mês
 - **Gráfico Rápido**: Histograma de gastos por categoria
 - **Ações Rápidas**: Links para funcionalidades principais
+
+### Pagamentos Recebidos
+- **Estatísticas Detalhadas**: Total recebido, média mensal, receitas do mês atual
+- **Gráfico de Pizza**: Distribuição por categoria (Salário, Férias, PIX)
+- **Evolução Temporal**: Gráfico de linha com tendência dos recebimentos
+- **Filtros Específicos**: Por categoria, período e mês/ano
 
 ### Resumo Financeiro
 - **Distribuição de Saldos**: Gráfico de barras ordenado
@@ -280,4 +310,7 @@ Para dúvidas ou problemas:
 - ✅ Interface responsiva
 - ✅ CRUD completo
 - ✅ Exportação CSV
-- ✅ Histórico automático 
+- ✅ Histórico automático
+- ✅ Pagamentos recebidos
+- ✅ Atualização automática do saldo
+- ✅ Categorias específicas (Salário, Férias, PIX) 
